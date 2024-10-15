@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Friend Suggestion System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        .user {
+            display: inline-block;
+            padding: 10px;
+            border: 1px solid #007bff;
+            border-radius: 5px;
+            margin: 10px;
+            cursor: pointer;
+        }
+        .suggestions, .available-friends {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+<h1>Friend Suggestion System</h1>
+<div id="user-input">
+    <input type="text" id="userName" placeholder="Enter your name">
+    <button onclick="setUser()">Set User</button>
+</div>
+
+<div id="users-container" style="display: none;">
+    <h2>Available Friends:</h2>
+    <div id="available-friends" class="available-friends"></div>
+
+    <h2>Add Friend:</h2>
+    <input type="text" id="friendName" placeholder="Enter friend's name">
+    <button onclick="manualAddFriend()">Add Friend Manually</button>
+
+    <div class="suggestions">
+        <h2>Friend Suggestions for <span id="current-user-display"></span>:</h2>
+        <ul id="suggestions-list"></ul>
+    </div>
+</div>
+
+<script>
+    let currentUser = '';
+    const allAvailableUsers = new Set(["Alice", "Bob", "Charlie", "David", "Eve", "Frank", "Grace"]);
+
+    async function fetchAvailableUsers() {
+        return Array.from(allAvailableUsers); // Return as an array
+    }
+
+    async function fetchSuggestions(user) {
+        const response = await fetch(`http://localhost:8080/suggestions?user=${user}`);
+        return await response.json();
+    }
+
+    async function displayAvailableFriends() {
+        const availableUsers = await fetchAvailableUsers();
+        const friendsContainer = document.getElementById("available-friends");
+        friendsContainer.innerHTML = '';
+
+        // Add current user to available friends list if not already present
+        if (!allAvailableUsers.has(currentUser)) {
+            allAvailableUsers.add(currentUser); // Add current user to the set
+        }
+
+        availableUsers.forEach(user => {
+            const userDiv = document.createElement('div');
+            userDiv.className = 'user';
+            userDiv.textContent = user;
+            userDiv.onclick = () => addFriend(user); // Add friend on click
+            friendsContainer.appendChild(userDiv);
+        });
+    }
+
+    async function displaySuggestions() {
+        if (currentUser) {
+            const suggestions = await fetchSuggestions(currentUser);
+            const suggestionsList = document.getElementById("suggestions-list");
+            suggestionsList.innerHTML = '';
+            suggestions.forEach(suggestion => {
+                const listItem = document.createElement('li');
+                listItem.textContent = suggestion;
+                suggestionsList.appendChild(listItem);
+            });
+            document.getElementById("current-user-display").textContent = currentUser;
+        }
+    }
+
+    async function addFriend(friend) {
+        if (currentUser && friend !== currentUser) {
+            await fetch(`http://localhost:8080/addFriend?user=${currentUser}&friend=${friend}`, {
+                method: 'POST'
+            });
+            displaySuggestions(); // Update suggestions
+        }
+    }
+
+    async function manualAddFriend() {
+        const friendName = document.getElementById("friendName").value;
+        if (friendName) {
+            await addFriend(friendName);
+            document.getElementById("friendName").value = ''; // Clear input
+        }
+    }
+
+    function setUser() {
+        const enteredUser = document.getElementById("userName").value.trim();
+        if (enteredUser) {
+            currentUser = enteredUser; // Set current user
+            document.getElementById("user-input").style.display = 'none';
+            document.getElementById("users-container").style.display = 'block';
+            displayAvailableFriends(); // Load available friends
+            displaySuggestions(); // Load suggestions for the new user
+        }
+    }
+</script>
+</body>
+</html>
